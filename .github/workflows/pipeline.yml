@@ -3,8 +3,8 @@ on:
   push:
     branches: [main]
     paths-ignore:
-      - "tourism_project/deployment/model.joblib"
-      - "tourism_project/deployment/model_metadata.json"
+      - "visit_with_us_mlops/tourism_project/deployment/model.joblib"
+      - "visit_with_us_mlops/tourism_project/deployment/model_metadata.json"
   workflow_dispatch:
 
 permissions:
@@ -23,16 +23,16 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: tourism_project/requirements.txt
+          cache-dependency-path: visit_with_us_mlops/tourism_project/requirements.txt
       - name: Install dependencies
         run: python -m pip install --upgrade pip pandas
       - name: Validate dataset
-        run: python tourism_project/model_building/data_register.py
+        run: python visit_with_us_mlops/tourism_project/model_building/data_register.py
       - name: Upload registered dataset
         uses: actions/upload-artifact@v4
         with:
           name: registered-data
-          path: tourism_project/data/tourism.csv
+          path: visit_with_us_mlops/tourism_project/data/tourism.csv
           if-no-files-found: error
 
   data-prep:
@@ -44,11 +44,11 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: tourism_project/requirements.txt
+          cache-dependency-path: visit_with_us_mlops/tourism_project/requirements.txt
       - name: Install preparation dependencies
         run: python -m pip install pandas scikit-learn
       - name: Run data preparation
-        run: python tourism_project/model_building/prep.py
+        run: python visit_with_us_mlops/tourism_project/model_building/prep.py
       - name: Upload train/test splits
         uses: actions/upload-artifact@v4
         with:
@@ -65,9 +65,9 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: tourism_project/requirements.txt
+          cache-dependency-path: visit_with_us_mlops/tourism_project/requirements.txt
       - name: Install training dependencies
-        run: python -m pip install --upgrade pip -r tourism_project/requirements.txt
+        run: python -m pip install --upgrade pip -r visit_with_us_mlops/tourism_project/requirements.txt
       - name: Download train/test splits
         uses: actions/download-artifact@v4
         with:
@@ -76,7 +76,7 @@ jobs:
       - name: Train, tune, evaluate and register model
         env:
           MLFLOW_TRACKING_URI: file:./mlruns
-        run: python tourism_project/model_building/train.py
+        run: python visit_with_us_mlops/tourism_project/model_building/train.py
       - name: Upload MLflow tracking data
         if: always()
         uses: actions/upload-artifact@v4
@@ -88,7 +88,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add tourism_project/deployment/model.joblib tourism_project/deployment/model_metadata.json
+          git add visit_with_us_mlops/tourism_project/deployment/model.joblib visit_with_us_mlops/tourism_project/deployment/model_metadata.json
           if git diff --cached --quiet; then
             echo "No model changes to commit."
           else
