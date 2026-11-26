@@ -1,30 +1,27 @@
-```python
 """Tune, evaluate, track and serialize the customer purchase model."""
 
-from pathlib import Path
 import json
 import os
+from pathlib import Path
+
 import joblib
 import mlflow
 import mlflow.sklearn
 import pandas as pd
-
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import (
     accuracy_score,
+    classification_report,
     f1_score,
     precision_score,
     recall_score,
     roc_auc_score,
-    classification_report,
 )
 from sklearn.model_selection import GridSearchCV, StratifiedKFold
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
-
 from xgboost import XGBClassifier
-
 
 # --------------------------------------------------
 # Project paths
@@ -42,40 +39,30 @@ TARGET = "ProdTaken"
 # Main training function
 # --------------------------------------------------
 
-def main():
 
+def main():
     print("Starting Visit with Us model training...")
 
     # --------------------------------------------------
     # 1. Validate and load training/testing datasets
     # --------------------------------------------------
 
-    required_files = [
-        "X_train.csv",
-        "X_test.csv",
-        "y_train.csv",
-        "y_test.csv",
-    ]
+    required_files = ["X_train.csv", "X_test.csv", "y_train.csv", "y_test.csv"]
 
     for filename in required_files:
         file_path = SPLIT_DIR / filename
-
         if not file_path.exists():
-            raise FileNotFoundError(
-                f"Required dataset file not found: {file_path}"
-            )
+            raise FileNotFoundError(f"Required dataset file not found: {file_path}")
 
     print(f"Loading datasets from: {SPLIT_DIR}")
 
     X_train = pd.read_csv(SPLIT_DIR / "X_train.csv")
     X_test = pd.read_csv(SPLIT_DIR / "X_test.csv")
-
     y_train = pd.read_csv(SPLIT_DIR / "y_train.csv")[TARGET]
     y_test = pd.read_csv(SPLIT_DIR / "y_test.csv")[TARGET]
 
     print("Training data shape:", X_train.shape)
     print("Testing data shape:", X_test.shape)
-
     print("Training target distribution:")
     print(y_train.value_counts())
 
@@ -83,15 +70,8 @@ def main():
     # 2. Identify numeric and categorical features
     # --------------------------------------------------
 
-    numeric = X_train.select_dtypes(
-        include=["number"]
-    ).columns.tolist()
-
-    categorical = [
-        column
-        for column in X_train.columns
-        if column not in numeric
-    ]
+    numeric = X_train.select_dtypes(include=["number"]).columns.tolist()
+    categorical = [column for column in X_train.columns if column not in numeric]
 
     print("Numeric features:", len(numeric))
     print("Categorical features:", len(categorical))
@@ -100,29 +80,32 @@ def main():
     # 3. Build preprocessing pipelines
     # --------------------------------------------------
 
-    numeric_pipe = Pipeline([
-        ("imputer", SimpleImputer(strategy="median")),
-        ("scaler", StandardScaler()),
-    ])
+    numeric_pipe = Pipeline(
+        [
+            ("imputer", SimpleImputer(strategy="median")),
+            ("scaler", StandardScaler()),
+        ]
+    )
 
-    categorical_pipe = Pipeline([
-        ("imputer", SimpleImputer(strategy="most_frequent")),
-        ("onehot", OneHotEncoder(handle_unknown="ignore")),
-    ])
+    categorical_pipe = Pipeline(
+        [
+            ("imputer", SimpleImputer(strategy="most_frequent")),
+            ("onehot", OneHotEncoder(handle_unknown="ignore")),
+        ]
+    )
 
-    preprocessor = ColumnTransformer([
-        ("numeric", numeric_pipe, numeric),
-        ("categorical", categorical_pipe, categorical),
-    ])
+    preprocessor = ColumnTransformer(
+        [
+            ("numeric", numeric_pipe, numeric),
+            ("categorical", categorical_pipe, categorical),
+        ]
+    )
 
     # --------------------------------------------------
     # 4. Initialize XGBoost classifier
     # --------------------------------------------------
 
-    scale_pos_weight = max(
-        1.0,
-        (y_train == 0).sum() / max(1, (y_train == 1).sum())
-    )
+    scale_pos_weight = max(1.0, (y_train == 0).sum() / max(1, (y_train == 1).sum()))
 
     estimator = XGBClassifier(
         objective="binary:logistic",
@@ -133,13 +116,15 @@ def main():
         scale_pos_weight=scale_pos_weight,
     )
 
-    pipeline = Pipeline([
-        ("preprocessor", preprocessor),
-        ("classifier", estimator),
-    ])
+    pipeline = Pipeline(
+        [
+            ("preprocessor", preprocessor),
+            ("classifier", estimator),
+        ]
+    )
 
     # --------------------------------------------------
-    # 5. Hyperparameter tuning
+    # 5. Hyperparameter tuning setup
     # --------------------------------------------------
 
     param_grid = {
@@ -149,32 +134,24 @@ def main():
         "classifier__subsample": [0.9],
     }
 
-    cv = StratifiedKFold(
-        n_splits=3,
-        shuffle=True,
-        random_state=42,
-    )
-
-    print("Starting GridSearchCV hyperparameter tuning...")
+    cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
 
     # --------------------------------------------------
     # 6. Configure MLflow
     # --------------------------------------------------
 
     tracking_uri = os.getenv("MLFLOW_TRACKING_URI")
-
     if tracking_uri:
         mlflow.set_tracking_uri(tracking_uri)
 
-    mlflow.set_experiment(
-        "visit-with-us-wellness-package"
-    )
+    mlflow.set_experiment("visit-with-us-wellness-package")
 
     # --------------------------------------------------
     # 7. Train and evaluate model
     # --------------------------------------------------
 
     with mlflow.start_run():
+        print("Starting GridSearchCV hyperparameter tuning...")
 
         search = GridSearchCV(
             estimator=pipeline,
@@ -185,43 +162,18 @@ def main():
             refit=True,
             verbose=1,
         )
-
         search.fit(X_train, y_train)
 
         best_model = search.best_estimator_
-
         predictions = best_model.predict(X_test)
-
         probabilities = best_model.predict_proba(X_test)[:, 1]
 
         metrics = {
-            "accuracy": float(
-                accuracy_score(y_test, predictions)
-            ),
-            "precision": float(
-                precision_score(
-                    y_test,
-                    predictions,
-                    zero_division=0,
-                )
-            ),
-            "recall": float(
-                recall_score(
-                    y_test,
-                    predictions,
-                    zero_division=0,
-                )
-            ),
-            "f1": float(
-                f1_score(
-                    y_test,
-                    predictions,
-                    zero_division=0,
-                )
-            ),
-            "roc_auc": float(
-                roc_auc_score(y_test, probabilities)
-            ),
+            "accuracy": float(accuracy_score(y_test, predictions)),
+            "precision": float(precision_score(y_test, predictions, zero_division=0)),
+            "recall": float(recall_score(y_test, predictions, zero_division=0)),
+            "f1": float(f1_score(y_test, predictions, zero_division=0)),
+            "roc_auc": float(roc_auc_score(y_test, probabilities)),
             "best_cv_f1": float(search.best_score_),
         }
 
@@ -231,21 +183,9 @@ def main():
 
         mlflow.log_params(search.best_params_)
         mlflow.log_metrics(metrics)
-
-        mlflow.set_tag(
-            "model",
-            "XGBClassifier"
-        )
-
-        mlflow.set_tag(
-            "target",
-            TARGET
-        )
-
-        mlflow.set_tag(
-            "project",
-            "Visit with Us"
-        )
+        mlflow.set_tag("model", "XGBClassifier")
+        mlflow.set_tag("target", TARGET)
+        mlflow.set_tag("project", "Visit with Us")
 
         print("\nBest parameters:")
         print(json.dumps(search.best_params_, indent=2))
@@ -254,29 +194,16 @@ def main():
         print(json.dumps(metrics, indent=2))
 
         print("\nClassification report:")
-        print(
-            classification_report(
-                y_test,
-                predictions,
-                zero_division=0,
-            )
-        )
+        print(classification_report(y_test, predictions, zero_division=0))
 
         # --------------------------------------------------
         # 9. Save trained model
         # --------------------------------------------------
 
-        DEPLOY_DIR.mkdir(
-            parents=True,
-            exist_ok=True
-        )
+        DEPLOY_DIR.mkdir(parents=True, exist_ok=True)
 
         model_path = DEPLOY_DIR / "model.joblib"
-
-        joblib.dump(
-            best_model,
-            model_path
-        )
+        joblib.dump(best_model, model_path)
 
         # --------------------------------------------------
         # 10. Generate Streamlit application metadata
@@ -285,48 +212,24 @@ def main():
         feature_info = {}
 
         for column in X_train.columns:
-
             series = X_train[column]
+            has_values = series.notna().any()
 
             if pd.api.types.is_numeric_dtype(series):
-
-                median = (
-                    float(series.median())
-                    if series.notna().any()
-                    else 0.0
-                )
-
                 feature_info[column] = {
                     "type": "number",
-                    "min": (
-                        float(series.min())
-                        if series.notna().any()
-                        else 0.0
-                    ),
-                    "max": (
-                        float(series.max())
-                        if series.notna().any()
-                        else 100.0
-                    ),
-                    "default": median,
+                    "min": float(series.min()) if has_values else 0.0,
+                    "max": float(series.max()) if has_values else 100.0,
+                    "default": float(series.median()) if has_values else 0.0,
                 }
-
             else:
-
-                values = sorted(
-                    series.dropna()
-                    .astype(str)
-                    .unique()
-                    .tolist()
-                )
-
+                values = sorted(series.dropna().astype(str).unique().tolist())
                 mode_values = series.mode(dropna=True)
 
-                default = (
-                    str(mode_values.iloc[0])
-                    if not mode_values.empty
-                    else (values[0] if values else "")
-                )
+                if not mode_values.empty:
+                    default = str(mode_values.iloc[0])
+                else:
+                    default = values[0] if values else ""
 
                 feature_info[column] = {
                     "type": "category",
@@ -343,40 +246,27 @@ def main():
         }
 
         metadata_path = DEPLOY_DIR / "model_metadata.json"
-
-        metadata_path.write_text(
-            json.dumps(metadata, indent=2),
-            encoding="utf-8",
-        )
+        metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
         # --------------------------------------------------
         # 11. Log model and metadata to MLflow
         # --------------------------------------------------
 
-        mlflow.log_artifact(
-            str(metadata_path)
-        )
-
-        mlflow.sklearn.log_model(
-            best_model,
-            name="wellness_purchase_model",
-        )
+        mlflow.log_artifact(str(metadata_path))
+        mlflow.sklearn.log_model(best_model, name="wellness_purchase_model")
 
         # --------------------------------------------------
         # 12. Final confirmation
         # --------------------------------------------------
 
         print("\nModel training completed successfully.")
-
         print(f"Model saved: {model_path}")
         print(f"Metadata saved: {metadata_path}")
 
         print("\nGenerated deployment files:")
-
         for file in DEPLOY_DIR.iterdir():
             print(file.name)
 
 
 if __name__ == "__main__":
     main()
-```
