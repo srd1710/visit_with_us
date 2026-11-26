@@ -41,4 +41,17 @@ def main():
 
     X_train.to_csv(OUTPUT_DIR / "X_train.csv", index=False)
     X_test.to_csv(OUTPUT_DIR / "X_test.csv", index=False)
-    y_train.to_frame().to_csv(OUTPUT_DIR /
+    y_train.to_frame().to_csv(OUTPUT_DIR / "y_train.csv", index=False)
+    y_test.to_frame().to_csv(OUTPUT_DIR / "y_test.csv", index=False)
+
+    print("Data preparation completed successfully.")
+    print(f"Training records: {len(X_train)}")
+    print(f"Testing records: {len(X_test)}")
+    print(f"Files saved to: {OUTPUT_DIR}")
+
+    for file in OUTPUT_DIR.glob("*.csv"):
+        print(f"Generated: {file.name} ({file.stat().st_size} bytes)")
+
+
+if __name__ == "__main__":
+    main()
