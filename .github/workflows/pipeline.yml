@@ -30,7 +30,15 @@ jobs:
         run: python visit_with_us_mlops/tourism_project/model_building/data_register.py
       - name: Upload registered dataset
         uses: actions/upload-artifact@v4
-        with:
+      - name: Debug generated files
+        run: |
+          echo "Current directory:"
+          pwd
+          echo "Searching for generated CSV files:"
+          find . -type f -name "*.csv"
+          echo "Checking artifacts directories:"
+          find . -type d -name "artifacts"        
+      with:
           name: registered-data
           path: visit_with_us_mlops/tourism_project/data/tourism.csv
           if-no-files-found: error
