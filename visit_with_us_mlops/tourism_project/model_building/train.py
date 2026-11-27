@@ -144,6 +144,37 @@ def main():
     if tracking_uri:
         mlflow.set_tracking_uri(tracking_uri)
 
+    # ---------------------------------------
+# MLFLOW CONFIGURATION
+# ---------------------------------------
+
+from pathlib import Path
+import mlflow
+
+# Project directory
+PROJECT_DIR = Path(__file__).resolve().parents[1]
+
+# Create SQLite database for MLflow tracking
+MLFLOW_DB = PROJECT_DIR / "mlflow.db"
+
+# Ensure project directory exists
+MLFLOW_DB.parent.mkdir(
+    parents=True,
+    exist_ok=True
+)
+
+# Configure SQLite tracking backend
+mlflow.set_tracking_uri(
+    f"sqlite:///{MLFLOW_DB.as_posix()}"
+)
+
+# Set experiment
+mlflow.set_experiment(
+    "visit-with-us-wellness-package"
+)
+
+print("MLflow tracking URI:", mlflow.get_tracking_uri())
+
     mlflow.set_experiment("visit-with-us-wellness-package")
 
     # --------------------------------------------------
