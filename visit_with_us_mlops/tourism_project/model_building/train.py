@@ -257,7 +257,7 @@ def main():
         # --------------------------------------------------
 
         mlflow.log_artifact(str(metadata_path))
-                mlflow.sklearn.log_model(
+        mlflow.sklearn.log_model(
             best_model,
             name="wellness_purchase_model",
             skops_trusted_types=[
