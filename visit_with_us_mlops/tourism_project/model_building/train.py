@@ -257,7 +257,15 @@ def main():
         # --------------------------------------------------
 
         mlflow.log_artifact(str(metadata_path))
-        mlflow.sklearn.log_model(best_model, name="wellness_purchase_model")
+                mlflow.sklearn.log_model(
+            best_model,
+            name="wellness_purchase_model",
+            skops_trusted_types=[
+                "numpy.dtype",
+                "xgboost.core.Booster",
+                "xgboost.sklearn.XGBClassifier",
+            ],
+        )
 
         # --------------------------------------------------
         # 12. Final confirmation
