@@ -140,42 +140,15 @@ def main():
     # 6. Configure MLflow
     # --------------------------------------------------
 
+    # Use MLFLOW_TRACKING_URI if set; otherwise track to a local SQLite database
     tracking_uri = os.getenv("MLFLOW_TRACKING_URI")
-    if tracking_uri:
-        mlflow.set_tracking_uri(tracking_uri)
+    if not tracking_uri:
+        tracking_uri = f"sqlite:///{(PROJECT_DIR / 'mlflow.db').as_posix()}"
 
-    # ---------------------------------------
-# MLFLOW CONFIGURATION
-# ---------------------------------------
-
-from pathlib import Path
-import mlflow
-
-# Project directory
-PROJECT_DIR = Path(__file__).resolve().parents[1]
-
-# Create SQLite database for MLflow tracking
-MLFLOW_DB = PROJECT_DIR / "mlflow.db"
-
-# Ensure project directory exists
-MLFLOW_DB.parent.mkdir(
-    parents=True,
-    exist_ok=True
-)
-
-# Configure SQLite tracking backend
-mlflow.set_tracking_uri(
-    f"sqlite:///{MLFLOW_DB.as_posix()}"
-)
-
-# Set experiment
-mlflow.set_experiment(
-    "visit-with-us-wellness-package"
-)
-
-print("MLflow tracking URI:", mlflow.get_tracking_uri())
-
+    mlflow.set_tracking_uri(tracking_uri)
     mlflow.set_experiment("visit-with-us-wellness-package")
+
+    print("MLflow tracking URI:", mlflow.get_tracking_uri())
 
     # --------------------------------------------------
     # 7. Train and evaluate model
