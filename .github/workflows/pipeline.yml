@@ -114,8 +114,6 @@ jobs:
 
       - name: Train, tune, evaluate and register model
         working-directory: visit_with_us_mlops/tourism_project
-        env:
-          MLFLOW_TRACKING_URI: file:./mlruns
         run: python model_building/train.py
 
       - name: Upload MLflow tracking data
@@ -123,7 +121,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: mlflow-run-data
-          path: visit_with_us_mlops/tourism_project/mlruns/
+          path: |
+            visit_with_us_mlops/tourism_project/mlflow.db
+            visit_with_us_mlops/tourism_project/mlruns/
+            visit_with_us_mlops/tourism_project/mlartifacts/
           if-no-files-found: ignore
 
       - name: Commit trained model
